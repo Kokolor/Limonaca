@@ -1,13 +1,1 @@
-﻿in stdlib, stdio as std
-
-fn add int32: x int32, y int32 => begin
-    return x y;
-end
-
-fn main int32: none => begin
-    var a int32 = 15;
-    var b int16 = 74;
-    var c int32 = add(a, b as int32);
-    
-    return c;
-end
+﻿4 + 2 - 4 * 2

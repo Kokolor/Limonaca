@@ -33,6 +33,9 @@ public class Token(TokenType type, string value)
     private TokenType Type { get; } = type;
     private string Value { get; } = value;
 
+    public new TokenType GetType() => Type;
+    public string GetValue() => Value;
+
     public override string ToString() => $"{Type} {Value}";
 }
 
@@ -128,19 +131,98 @@ public enum NodeType
     Minus,
     Multiply,
     Divide,
+    Number,
+    Identifier,
+}
+
+public class Node(NodeType type, Node? left = null, Node? right = null, string value = "")
+{
+    private NodeType Type { get; } = type;
+    private Node? Left { get; } = left;
+    private Node? Right { get; } = right;
+    private string Value { get; } = value;
+
+    public new NodeType GetType() => Type;
+    public string GetValue() => Value;
+    public Node? GetLeft() => Left;
+    public Node? GetRight() => Right;
+
+    public override string ToString() => $"{Type} {Value}";
 }
 
 public static class Parser
 {
-    public static NodeType TokenToNode(TokenType token)
+    private static int _currentTokenIndex;
+
+    public static Node Parse(List<Token> tokens)
     {
-        return token switch
+        _currentTokenIndex = 0;
+        return ParseExpression(tokens);
+    }
+
+    private static Node ParseExpression(List<Token> tokens)
+    {
+        var left = ParseTerm(tokens);
+
+        while (_currentTokenIndex < tokens.Count &&
+               (tokens[_currentTokenIndex].GetType() == TokenType.Plus ||
+                tokens[_currentTokenIndex].GetType() == TokenType.Minus))
         {
-            TokenType.Plus => NodeType.Plus,
-            TokenType.Minus => NodeType.Minus,
-            TokenType.Star => NodeType.Multiply,
-            TokenType.Slash => NodeType.Divide,
-            _ => throw new ArgumentException($"Unrecognized character: {token}")
+            var operatorToken = tokens[_currentTokenIndex];
+            _currentTokenIndex++;
+
+            var right = ParseTerm(tokens);
+            left = new Node(
+                operatorToken.GetType() switch
+                {
+                    TokenType.Plus => NodeType.Plus,
+                    TokenType.Minus => NodeType.Minus,
+                    _ => throw new InvalidOperationException("Unexpected operator")
+                },
+                left,
+                right
+            );
+        }
+
+        return left;
+    }
+
+    private static Node ParseTerm(List<Token> tokens)
+    {
+        var left = ParseFactor(tokens);
+
+        while (_currentTokenIndex < tokens.Count &&
+               (tokens[_currentTokenIndex].GetType() == TokenType.Star ||
+                tokens[_currentTokenIndex].GetType() == TokenType.Slash))
+        {
+            var operatorToken = tokens[_currentTokenIndex];
+            _currentTokenIndex++;
+
+            var right = ParseFactor(tokens);
+            left = new Node(
+                operatorToken.GetType() switch
+                {
+                    TokenType.Star => NodeType.Multiply,
+                    TokenType.Slash => NodeType.Divide,
+                    _ => throw new InvalidOperationException("Unexpected operator")
+                },
+                left,
+                right
+            );
+        }
+
+        return left;
+    }
+
+    private static Node ParseFactor(List<Token> tokens)
+    {
+        var token = tokens[_currentTokenIndex++];
+
+        return token.GetType() switch
+        {
+            TokenType.Number => new Node(NodeType.Number, value: token.GetValue()),
+            TokenType.Identifier => new Node(NodeType.Identifier, value: token.GetValue()),
+            _ => throw new ArgumentException($"Unexpected token: {token}")
         };
     }
 }
@@ -149,13 +231,41 @@ public static class Program
 {
     private static void Main()
     {
-        var input = File.ReadAllText("code.liml");
-        if (input == null) throw new FileLoadException();
-        var tokens = Lexer.Tokenize(input);
-
-        foreach (var token in tokens)
+        try
         {
-            Console.WriteLine(token);
+            var input = File.ReadAllText("code.liml");
+            if (input == null) throw new FileLoadException("Unable to load file.");
+
+            var tokens = Lexer.Tokenize(input);
+
+            Console.WriteLine("Tokens:");
+            foreach (var token in tokens)
+            {
+                Console.WriteLine(token);
+            }
+
+            var ast = Parser.Parse(tokens);
+            Console.WriteLine("\nParsed AST:");
+            PrintAst(ast, 0);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+
+    private static void PrintAst(Node? node, int indent)
+    {
+        while (true)
+        {
+            if (node == null) return;
+
+            var indentStr = new string(' ', indent);
+            Console.WriteLine($"{indentStr}{node.GetType()} {node.GetValue()}");
+
+            PrintAst(node.GetLeft(), indent + 2);
+            node = node.GetRight();
+            indent = indent + 2;
         }
     }
 }
