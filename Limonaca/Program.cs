@@ -25,7 +25,6 @@ public enum TokenType
     Assignment,
     ParenthesisOpen,
     ParenthesisClose,
-    
     Eof,
 }
 
@@ -119,6 +118,29 @@ public static class Lexer
             "int32" => new Token(TokenType.TypeInt32, value),
             "int16" => new Token(TokenType.TypeInt16, value),
             _ => isIdentifier ? new Token(TokenType.Identifier, value) : new Token(TokenType.Number, value)
+        };
+    }
+}
+
+public enum NodeType
+{
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+}
+
+public static class Parser
+{
+    public static NodeType TokenToNode(TokenType token)
+    {
+        return token switch
+        {
+            TokenType.Plus => NodeType.Plus,
+            TokenType.Minus => NodeType.Minus,
+            TokenType.Star => NodeType.Multiply,
+            TokenType.Slash => NodeType.Divide,
+            _ => throw new ArgumentException($"Unrecognized character: {token}")
         };
     }
 }
